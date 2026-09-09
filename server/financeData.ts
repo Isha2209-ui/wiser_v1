@@ -107,14 +107,27 @@ export function financialSnapshot() {
   const s = DEMO_PROFILE.summary;
   const totalInvested = DEMO_PROFILE.holdings.reduce((sum, holding) => sum + holding.current, 0);
   const totalDebt = DEMO_PROFILE.debts.reduce((sum, debt) => sum + debt.balance, 0);
+  const savingsRate = Math.round((s.monthlySurplus / s.monthlyIncome) * 1000) / 10;
+  const liquidityScore = Math.min(100, Math.round((s.runwayMonths / 9) * 100));
+  const savingsScore = Math.min(100, Math.round((savingsRate / 35) * 100));
+  const debtScore = Math.max(0, Math.min(100, Math.round(100 - (totalDebt / (s.netWorth + totalDebt)) * 100)));
+  const investmentScore = Math.min(100, Math.round((totalInvested / s.netWorth) * 100));
+  const protectionScore = Math.min(100, Math.round((s.creditScore / 900) * 100));
+  const healthScore = Math.round((liquidityScore + savingsScore + debtScore + investmentScore + protectionScore) / 5);
   return {
     profile: DEMO_PROFILE,
     metrics: {
       totalInvested,
       totalDebt,
-      savingsRate: Math.round((s.monthlySurplus / s.monthlyIncome) * 1000) / 10,
+      savingsRate,
       totalAssets: s.netWorth + totalDebt,
       expenseRatio: Math.round((s.monthlyExpenses / s.monthlyIncome) * 1000) / 10,
+      financialHealth: { score: healthScore, liquidity: liquidityScore, savings: savingsScore, debt: debtScore, investments: investmentScore, protection: protectionScore },
+      signals: [
+        { tone: "healthy" as const, label: "Healthy", title: "Savings rate is above target", detail: `Current savings rate is ${savingsRate}%, above the 25% planning benchmark.` },
+        { tone: s.creditUtilization <= 30 ? "healthy" as const : "watch" as const, label: s.creditUtilization <= 30 ? "Healthy" : "Watch", title: "Credit utilization is controlled", detail: `Current utilization is ${s.creditUtilization}% against a 30% healthy-use threshold.` },
+        { tone: s.runwayMonths >= 6 ? "healthy" as const : "action" as const, label: s.runwayMonths >= 6 ? "Healthy" : "Action needed", title: "Cash runway is measurable", detail: `${s.runwayMonths} months of expenses are covered by liquid cash.` },
+      ],
     },
   };
 }
