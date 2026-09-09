@@ -3,7 +3,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { invokeLLM } from "./_core/llm";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { answerDeterministically, financialSnapshot, DEMO_PROFILE } from "./financeData";
 
 const advisorSystem = `You are CredWise Intelligence, a careful personal finance advisor for a product prototype.
@@ -11,6 +11,55 @@ Use only the supplied financial profile. Never invent balances, returns, transac
 Distinguish retrieved data, calculated values, assumptions, projections, recommendations, and missing data.
 Give practical, concise guidance with a short answer first, then rationale and one next action. Use Indian rupee formatting.
 This is educational financial intelligence, not a guarantee or regulated personal recommendation. If a question requires missing data, say so clearly.`;
+
+const DEMO_DOCUMENT = {
+  id: "doc_august_2026",
+  name: "HDFC Bank Statement · August 2026.pdf",
+  size: "482 KB",
+  pages: 6,
+  type: "Bank statement",
+  uploadedAt: "09 Sep 2026, 10:40",
+  period: "01 Aug – 31 Aug 2026",
+  status: "Ready for review" as const,
+  summary: {
+    institution: "HDFC Bank",
+    account: "Savings account · •• 4821",
+    openingBalance: 612400,
+    closingBalance: 584200,
+    totalCredits: 238000,
+    totalDebits: 266200,
+    transactionCount: 42,
+    largestTransaction: "Rent · Koramangala — ₹42,000 on 01 Aug",
+    topCategory: "Housing — ₹42,000",
+    unusual: "Amazon India — ₹12,480 on 08 Aug appears unusual compared with the statement's shopping pattern.",
+    recurring: ["Salary credit · ₹238,000 · 01 Aug", "Rent · ₹42,000 · 01 Aug", "Groww SIP · ₹25,000 · 01 Aug", "HDFC Life premium · ₹3,200 · 15 Aug"],
+    categories: [
+      { name: "Housing", amount: 42000, share: 16 },
+      { name: "Investments", amount: 25000, share: 9 },
+      { name: "Travel", amount: 18400, share: 7 },
+      { name: "Shopping", amount: 15680, share: 6 },
+      { name: "Food & dining", amount: 8320, share: 3 },
+      { name: "Utilities & other", amount: 15660, share: 6 },
+    ],
+    takeaways: ["The account closed ₹28,200 below its opening balance after total debits exceeded credits.", "Housing is the largest identified outflow, followed by investing and travel.", "One shopping transaction is notably larger than the statement's usual shopping payments.", "Salary, rent, SIP, and insurance premium patterns appear recurring in the statement."],
+  },
+};
+
+function documentFallback(question: string) {
+  const q = question.toLowerCase();
+  const s = DEMO_DOCUMENT.summary;
+  if (q.includes("closing") || q.includes("end")) return "The closing balance was **₹5,84,200**. **Source: Page 1, Statement Overview.**";
+  if (q.includes("opening") || q.includes("beginning")) return "The opening balance was **₹6,12,400**. **Source: Page 1, Statement Overview.**";
+  if (q.includes("biggest") || q.includes("largest")) return `The largest identified transaction was **${s.largestTransaction}**. **Source: Page 2, Transaction Table.**`;
+  if (q.includes("food")) return "The statement shows approximately **₹8,320** in food and dining payments. **Source: Pages 2–4, categorized transaction rows.**";
+  if (q.includes("shopping")) return "Shopping totaled approximately **₹15,680**, including an Amazon India payment of ₹12,480 that appears unusual compared with the statement's pattern. **Source: Page 3, Transaction Table.**";
+  if (q.includes("salary")) return "Yes. A **₹2,38,000 salary credit** from Mehta Labs appears on 01 Aug. **Source: Page 2, Credit entries.**";
+  if (q.includes("subscription") || q.includes("recurring") || q.includes("emi")) return `The recurring payments identified are: ${s.recurring.map(item => `**${item}**`).join(", ")}. No EMI payment is clearly labeled in this statement. **Source: Pages 2–5.**`;
+  if (q.includes("unusual") || q.includes("suspicious")) return `One payment **may warrant review**: ${s.unusual} This is not a fraud determination. **Source: Page 3, Transaction Table.**`;
+  if (q.includes("how much") && (q.includes("came") || q.includes("credit"))) return "Total credits were **₹2,38,000**. **Source: Page 1, Statement Overview.**";
+  if (q.includes("how much") && (q.includes("went") || q.includes("spend") || q.includes("debit"))) return "Total debits were **₹2,66,200** across 42 transactions. **Source: Page 1, Statement Overview.**";
+  return "I could not find a precise answer to that question in this statement. Try asking about balances, credits, debits, categories, recurring payments, largest transactions, or unusual activity. I will not infer information that is not present in the PDF.";
+}
 
 function scenarioResult(price: number, downPayment: number, annualRate: number, years: number) {
   const principal = Math.max(price - downPayment, 0);
@@ -44,8 +93,8 @@ export const appRouter = router({
     }),
   }),
   finance: router({
-    profile: publicProcedure.query(() => financialSnapshot()),
-    ask: publicProcedure
+    profile: protectedProcedure.query(() => financialSnapshot()),
+    ask: protectedProcedure
       .input(z.object({ question: z.string().min(1).max(1200), history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(12).optional() }))
       .mutation(async ({ input }) => {
         const context = JSON.stringify(financialSnapshot());
@@ -67,9 +116,32 @@ export const appRouter = router({
         }
         return { answer: answerDeterministically(input.question), source: "Deterministic profile analysis" as const };
       }),
-    simulate: publicProcedure
+    simulate: protectedProcedure
       .input(z.object({ price: z.number().min(0).max(100000000), downPayment: z.number().min(0).max(100000000), annualRate: z.number().min(0).max(50), years: z.number().int().min(1).max(30) }))
       .query(({ input }) => scenarioResult(input.price, input.downPayment, input.annualRate, input.years)),
+    documents: protectedProcedure.query(() => ({ activeId: DEMO_DOCUMENT.id, documents: [DEMO_DOCUMENT] })),
+    documentAsk: protectedProcedure
+      .input(z.object({ documentId: z.string(), question: z.string().min(1).max(1200), history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(12).optional() }))
+      .mutation(async ({ input }) => {
+        if (input.documentId !== DEMO_DOCUMENT.id) return { answer: "I couldn't find that document in the active library.", source: "Document library" as const };
+        try {
+          const response = await invokeLLM({
+            model: "gpt-5-mini",
+            reasoning: { effort: "low" },
+            messages: [
+              { role: "system", content: "You are CredWise Document Intelligence. Answer ONLY from the supplied statement record. Never invent values. If the statement does not contain the answer, say so. Always finish with a grounded source such as Source: Page 1 or Source: Pages 2–4. Use cautious language for unusual activity." },
+              { role: "system", content: `Active PDF: ${JSON.stringify(DEMO_DOCUMENT)}` },
+              ...(input.history ?? []).map(message => ({ role: message.role as "user" | "assistant", content: message.content })),
+              { role: "user", content: input.question },
+            ],
+          });
+          const content = response.choices[0]?.message?.content;
+          if (typeof content === "string" && content.trim()) return { answer: content, source: "Grounded in active PDF" as const };
+        } catch (error) {
+          console.warn("[CredWise] Document LLM unavailable, using grounded fallback", error);
+        }
+        return { answer: documentFallback(input.question), source: "Grounded statement analysis" as const };
+      }),
   }),
 });
 

@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from "react";
 import { Streamdown } from "streamdown";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import DocumentReview from "@/components/DocumentReview";
 import type { FinancialProfile } from "../../../server/financeData";
 import {
   Activity, ArrowDownRight, ArrowUpRight, BarChart3, Bell, BrainCircuit, BriefcaseBusiness, Building2,
@@ -31,6 +33,7 @@ function AppMark() {
 }
 
 export default function Home() {
+  const auth = useAuth({ redirectOnUnauthenticated: true });
   const { data, isLoading, error } = trpc.finance.profile.useQuery();
   const ask = trpc.finance.ask.useMutation();
   const [section, setSection] = useState<Section>("Overview");
@@ -62,7 +65,7 @@ export default function Home() {
     }
   };
 
-  if (isLoading || !profile || !summary) return <div className="loading-screen"><div className="loading-orb"><Sparkles size={22} /></div><p>Building your financial picture…</p></div>;
+  if (auth.loading || !auth.isAuthenticated || isLoading || !profile || !summary) return <div className="loading-screen"><div className="loading-orb"><Sparkles size={22} /></div><p>{auth.isAuthenticated ? "Building your financial picture…" : "Securely opening your workspace…"}</p></div>;
   if (error) return <div className="loading-screen"><CircleAlert size={28} /><p>Unable to load the demo financial profile.</p></div>;
 
   const navItems: Array<{ label: Section; icon: typeof LayoutDashboard }> = [
@@ -113,7 +116,7 @@ export default function Home() {
 
     {showSimulator && <div className="modal-backdrop" onClick={() => setShowSimulator(false)}><div className="modal-card simulator-modal" onClick={event => event.stopPropagation()}><div className="modal-head"><div><p className="eyebrow mint-eyebrow"><Zap size={12} /> SCENARIO PLANNER</p><h2>What if I buy a car?</h2><p>See how a decision changes your liquidity and monthly surplus.</p></div><button className="icon-btn" onClick={() => setShowSimulator(false)}><X size={18} /></button></div><div className="scenario-fields"><label>Car price<input type="number" value={scenario.price} onChange={e => setScenario({ ...scenario, price: Number(e.target.value) })} /></label><label>Down payment<input type="number" value={scenario.downPayment} onChange={e => setScenario({ ...scenario, downPayment: Number(e.target.value) })} /></label><label>Interest rate<input type="number" step="0.1" value={scenario.rate} onChange={e => setScenario({ ...scenario, rate: Number(e.target.value) })} /></label><label>Loan tenure<select value={scenario.years} onChange={e => setScenario({ ...scenario, years: Number(e.target.value) })}><option value={3}>3 years</option><option value={5}>5 years</option><option value={7}>7 years</option></select></label></div>{simulation && <div className="scenario-result"><div className="scenario-verdict"><div className="verdict-icon"><CarFront size={20} /></div><div><span>PLANNING SIGNAL</span><b>{simulation.verdict}</b></div></div><div className="scenario-stats"><div><span>Estimated EMI</span><b>{money(simulation.emi)}<small>/mo</small></b></div><div><span>Cash after down payment</span><b>{money(simulation.remainingCash)}</b></div><div><span>New monthly surplus</span><b className={simulation.newSurplus < 0 ? "negative" : ""}>{money(simulation.newSurplus)}</b></div><div><span>Runway after purchase</span><b>{simulation.runwayMonths} months</b></div></div></div>}<div className="modal-foot"><span><ShieldCheck size={14} /> Deterministic calculation · no return assumptions</span><button className="primary-btn" onClick={() => { setShowSimulator(false); sendQuestion(`What happens if I buy a car for ${money(scenario.price)} with ${money(scenario.downPayment)} down?`); }}>Discuss with advisor <ArrowUpRight size={14} /></button></div></div></div>}
 
-    {showDocument && <div className="modal-backdrop" onClick={() => setShowDocument(false)}><div className="modal-card document-modal" onClick={event => event.stopPropagation()}><div className="modal-head"><div><p className="eyebrow mint-eyebrow"><FileText size={12} /> DOCUMENT REVIEW</p><h2>Review a financial document</h2><p>Extracted data stays pending until you confirm it.</p></div><button className="icon-btn" onClick={() => setShowDocument(false)}><X size={18} /></button></div>{!documentConfirmed ? <><div className="drop-zone" onClick={() => fileRef.current?.click()}><input ref={fileRef} hidden type="file" accept=".pdf,.csv,.xlsx,.png,.jpg" onChange={() => undefined} /><div className="upload-icon"><Upload size={20} /></div><b>Drop a bank statement here</b><span>PDF, CSV, XLSX or image · up to 10 MB</span><button className="secondary-btn">Choose file</button></div><div className="extraction-preview"><div className="extraction-head"><span><CircleAlert size={15} /> Sample extraction ready for review</span><small>Confidence 94%</small></div><div className="extracted-row"><span>Statement period</span><b>01 Aug – 31 Aug 2026</b></div><div className="extracted-row"><span>Detected transactions</span><b>42 transactions</b></div><div className="extracted-row"><span>Detected account</span><b>HDFC Bank · •• 4821</b></div></div><div className="modal-foot"><span>Nothing is saved until you confirm.</span><button className="primary-btn" onClick={() => setDocumentConfirmed(true)}>Confirm & add to profile <Check size={14} /></button></div></> : <div className="confirmed-state"><div className="confirmed-icon"><Check size={28} /></div><h3>Document added for review</h3><p>The extracted 42 transactions are ready to reconcile. Your profile calculations will update after the statement is verified.</p><button className="secondary-btn" onClick={() => setShowDocument(false)}>Done</button></div>}</div></div>}
+    {showDocument && <DocumentReview onClose={() => setShowDocument(false)} />}
   </div>;
 }
 
