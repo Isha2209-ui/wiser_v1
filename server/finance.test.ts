@@ -24,7 +24,7 @@ function createContext(): TrpcContext {
 describe("CredWise finance", () => {
   it("returns a connected financial snapshot with deterministic metrics", async () => {
     const result = await appRouter.createCaller(createContext()).finance.profile();
-    expect(result.profile.user.name).toBe("Arjun Mehta");
+    expect(result.profile.user.name).toBe("CredWise Member");
     expect(result.profile.summary.netWorth).toBe(4286500);
     expect(result.metrics.savingsRate).toBe(28.7);
     expect(result.metrics.totalDebt).toBe(3630600);

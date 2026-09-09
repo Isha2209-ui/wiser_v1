@@ -72,12 +72,11 @@ export default function Home() {
   const profile = data?.profile;
   const summary = profile?.summary;
   const displayName = auth.user?.name?.trim() || profile?.user.name || "User";
-  const firstName = displayName.split(/\s+/)[0] || "User";
   const initials = auth.user?.name?.split(/\s+/).map(part => part[0]).join("").slice(0, 2).toUpperCase() || profile?.user.initials || "U";
 
   useEffect(() => {
-    if (messages.length === 0 && profile?.user.name) setMessages([{ role: "assistant", content: `Good morning, ${firstName}. I’ve reviewed your latest money picture. What would you like to understand today?`, source: "CredWise Intelligence" }]);
-  }, [firstName, messages.length, profile?.user.name]);
+    if (messages.length === 0 && profile?.user.name) setMessages([{ role: "assistant", content: "Welcome to CredWise. I’ve reviewed your latest money picture. What would you like to understand today?", source: "CredWise Intelligence" }]);
+  }, [messages.length, profile?.user.name]);
   useEffect(() => {
     if (!auth.isAuthenticated && !auth.loading) {
       setMessages([]);
@@ -123,7 +122,7 @@ export default function Home() {
     <main className="main-area">
       <header className="topbar"><button className="icon-btn mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><div className="breadcrumbs"><span>Personal workspace</span><span className="slash">/</span><b>{section}</b></div><div className="top-actions"><div className="sync-state"><span className="sync-dot" />All accounts synced</div><button className="icon-btn"><Search size={18} /></button><button className="icon-btn notification"><Bell size={18} /><i /></button><div className="profile-menu-wrap"><button className="top-avatar" onClick={() => setProfileOpen(!profileOpen)}>{initials}</button>{profileOpen && <div className="profile-menu"><div className="profile-menu-head"><div className="avatar">{initials}</div><div><b>{displayName}</b><span>{auth.user?.email ?? "Private workspace"}</span></div></div><button onClick={() => setProfileOpen(false)}>Profile <ChevronRight size={14} /></button><button onClick={() => setProfileOpen(false)}>Settings <ChevronRight size={14} /></button><button className="logout-item" onClick={() => auth.logout()}>Log out <ArrowUpRight size={14} /></button></div>}</div></div></header>
       <div className="content-wrap">
-        <section className="welcome-row"><div><p className="eyebrow">TUESDAY, 09 SEPTEMBER 2026</p><h1>Good morning, {firstName} <span className="wave">✦</span></h1><p className="lede">Here’s the clearest view of your financial life today.</p></div><button className="add-btn" onClick={() => setShowDocument(true)}><Plus size={16} /> Add financial data</button></section>
+        <section className="welcome-row"><div><p className="eyebrow">TUESDAY, 09 SEPTEMBER 2026</p><h1>Welcome to CredWise <span className="wave">✦</span></h1><p className="lede">Here’s the clearest view of your financial life today.</p></div><button className="add-btn" onClick={() => setShowDocument(true)}><Plus size={16} /> Add financial data</button></section>
 
         {section === "Overview" && <>
           <section className="metric-grid">

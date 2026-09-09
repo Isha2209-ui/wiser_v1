@@ -43,7 +43,7 @@ export type FinancialProfile = {
 };
 
 export const DEMO_PROFILE: FinancialProfile = {
-  user: { name: "Arjun Mehta", initials: "AM", location: "Bengaluru, IN" },
+  user: { name: "CredWise Member", initials: "CW", location: "India" },
   summary: {
     netWorth: 4286500,
     netWorthChange: 7.4,
