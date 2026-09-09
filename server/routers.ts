@@ -170,6 +170,12 @@ export const appRouter = router({
         documentRecords.set(record.id, record);
         return record;
       }),
+    deleteDocument: publicProcedure
+      .input(z.object({ documentId: z.string().min(1) }))
+      .mutation(({ input }) => {
+        const existed = documentRecords.delete(input.documentId);
+        return { success: existed, documentId: input.documentId } as const;
+      }),
     documentAsk: publicProcedure
       .input(z.object({ documentId: z.string(), question: z.string().min(1).max(1200), history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(12).optional() }))
       .mutation(async ({ input }) => {
