@@ -114,6 +114,12 @@ export function financialSnapshot() {
   const investmentScore = Math.min(100, Math.round((totalInvested / s.netWorth) * 100));
   const protectionScore = Math.min(100, Math.round((s.creditScore / 900) * 100));
   const healthScore = Math.round((liquidityScore + savingsScore + debtScore + investmentScore + protectionScore) / 5);
+  const monthlySavingsTarget = Math.round(s.monthlyIncome * 0.25);
+  const trackDelta = s.monthlySurplus - monthlySavingsTarget;
+  const totalEmi = DEMO_PROFILE.debts.reduce((sum, debt) => sum + debt.emi, 0);
+  const safeSpendToday = Math.max(0, Math.round(((s.liquidCash - s.monthlyExpenses * 3) / 30) + Math.max(0, s.monthlySurplus - totalEmi) * 0.1));
+  const projectionFiveYear = s.netWorth + s.monthlySurplus * 60;
+  const projectionTenYear = s.netWorth + s.monthlySurplus * 120;
   return {
     profile: DEMO_PROFILE,
     metrics: {
@@ -123,6 +129,11 @@ export function financialSnapshot() {
       totalAssets: s.netWorth + totalDebt,
       expenseRatio: Math.round((s.monthlyExpenses / s.monthlyIncome) * 1000) / 10,
       financialHealth: { score: healthScore, liquidity: liquidityScore, savings: savingsScore, debt: debtScore, investments: investmentScore, protection: protectionScore },
+      financialTrack: { status: trackDelta >= 0 ? "healthy" as const : "watch" as const, delta: Math.abs(trackDelta), target: monthlySavingsTarget, actual: s.monthlySurplus, cause: trackDelta >= 0 ? "Your monthly surplus is above the 25% savings benchmark." : "Your monthly surplus is below the 25% savings benchmark." },
+      safeSpend: { amount: safeSpendToday, availableLiquidity: Math.max(0, s.liquidCash - s.monthlyExpenses * 3), monthlyObligations: totalEmi, method: "Keeps three months of expenses reserved and accounts for current obligations." },
+      outlook: { current: s.netWorth, fiveYear: projectionFiveYear, tenYear: projectionTenYear, monthlyContribution: s.monthlySurplus, assumption: "Projection uses current net worth plus current monthly surplus, with no assumed market returns." },
+      momentum: { surplus: s.monthlySurplus, savingsRate, netWorthChange: Math.round(s.netWorth * s.netWorthChange / 100), runway: s.runwayMonths },
+      nextAction: { title: "Complete your emergency fund", detail: `You are ${Math.round((DEMO_PROFILE.goals[1].saved / DEMO_PROFILE.goals[1].target) * 100)}% toward your emergency-fund target. Redirecting part of your monthly surplus can close the remaining ${Math.max(0, DEMO_PROFILE.goals[1].target - DEMO_PROFILE.goals[1].saved).toLocaleString("en-IN")} gap.`, cta: "See plan" },
       signals: [
         { tone: "healthy" as const, label: "Healthy", title: "Savings rate is above target", detail: `Current savings rate is ${savingsRate}%, above the 25% planning benchmark.` },
         { tone: s.creditUtilization <= 30 ? "healthy" as const : "watch" as const, label: s.creditUtilization <= 30 ? "Healthy" : "Watch", title: "Credit utilization is controlled", detail: `Current utilization is ${s.creditUtilization}% against a 30% healthy-use threshold.` },
