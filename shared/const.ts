@@ -5,10 +5,9 @@ export const UNAUTHED_ERR_MSG = 'Please login (10001)';
 export const NOT_ADMIN_ERR_MSG = 'You do not have required permission (10002)';
 
 // One-time nonce cookie that binds an OAuth login to the browser that started
-// it. The `__Host-` prefix forces the cookie host-only (Secure, Path=/, no
-// Domain), so a sibling *.manus.space site cannot plant a matching value in a
-// victim's browser.
-export const OAUTH_STATE_COOKIE = "__Host-oauth_state";
+// it. A regular host-only name is used because embedded preview browsers can
+// reject __Host-prefixed cookies during the OAuth handoff.
+export const OAUTH_STATE_COOKIE = "oauth_state";
 
 // `state` carries the callback redirect URI (used at token exchange) plus the
 // CSRF nonce. Defined here so the client encoder and server decoder never drift.
