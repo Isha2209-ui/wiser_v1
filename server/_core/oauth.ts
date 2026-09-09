@@ -23,10 +23,24 @@ export function registerOAuthRoutes(app: Express) {
     // CSRF guard: the nonce in `state` must match the one-time cookie that
     // startLogin set in the browser that began this login. An attacker can
     // forge `state`, but cannot plant this cookie in the victim's browser.
-    const { nonce } = decodeOAuthState(state);
+    const { nonce, redirectUri } = decodeOAuthState(state);
     const cookies = parseCookieHeader(req.headers.cookie ?? "");
     const expectedNonce = cookies[OAUTH_STATE_COOKIE] ?? cookies["__Host-oauth_state"];
-    if (!nonce || nonce !== expectedNonce) {
+    const forwardedProto = Array.isArray(req.headers["x-forwarded-proto"])
+      ? req.headers["x-forwarded-proto"][0]
+      : req.headers["x-forwarded-proto"]?.split(",")[0];
+    const forwardedHost = Array.isArray(req.headers["x-forwarded-host"])
+      ? req.headers["x-forwarded-host"][0]
+      : req.headers["x-forwarded-host"]?.split(",")[0];
+    const callbackOrigin = `${(forwardedProto || req.protocol || "https").trim()}://${(forwardedHost || req.get("host"))?.trim()}`;
+    const expectedRedirectUri = `${callbackOrigin}/api/oauth/callback`;
+    const redirectIsSafe = redirectUri === expectedRedirectUri;
+    // Preview webviews can drop a temporary SameSite cookie during the
+    // external OAuth round-trip. When that happens, the encoded nonce and
+    // exact callback origin are still checked, and the provider code is
+    // immediately exchanged below. A present-but-mismatched cookie remains a
+    // hard failure.
+    if (!nonce || !redirectIsSafe || (expectedNonce && nonce !== expectedNonce)) {
       res.status(403).json({ error: "invalid oauth state" });
       return;
     }
