@@ -46,3 +46,24 @@ button { cursor: pointer; }
 .login-brand small { font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: 2px; margin-top: 8px; }
 .login-copy h1 { font-size: clamp(31px, 3.6vw, 49px); }
 @media (max-width: 760px) { .login-brand { margin-bottom: 40px; }.login-brand b { font-size: 30px; } }
+
+/* Premium data visualization system */
+.chart-subtitle { color: #9aa59d; font-size: 10px; margin: 5px 0 0; }
+.premium-chart-shell { margin-top: 21px; padding: 0 4px 3px; }
+.premium-chart-legend { display: flex; align-items: center; gap: 16px; color: #849088; font-size: 10px; margin-bottom: 10px; }
+.premium-chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.chart-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.chart-dot.income { background: #46b97b; box-shadow: 0 0 0 3px rgba(70,185,123,.12); }
+.chart-dot.expense { background: #bd91c9; box-shadow: 0 0 0 3px rgba(189,145,201,.12); }
+.chart-savings { margin-left: auto; color: #238957 !important; font-family: "DM Mono", monospace; font-size: 9px; }
+.premium-line-chart { display: block; width: 100%; height: 155px; overflow: visible; background: linear-gradient(to bottom, rgba(242,247,242,.45), transparent 70%); border-radius: 8px; }
+.premium-chart-labels { display: flex; justify-content: space-between; color: #a5afa7; font-size: 9px; font-family: "DM Mono", monospace; padding: 7px 1px 0; }
+.premium-allocation { display: grid; gap: 17px; margin-top: 24px; }
+.allocation-row-premium { display: grid; grid-template-columns: 116px 1fr 76px 35px; align-items: center; gap: 10px; font-size: 10px; }
+.allocation-row-premium > span { display: flex; align-items: center; gap: 7px; color: #5c6c62; white-space: nowrap; }
+.allocation-row-premium > span i { width: 7px; height: 7px; border-radius: 50%; }
+.allocation-row-premium b { font-family: "DM Mono", monospace; font-size: 10px; text-align: right; color: #394840; }
+.allocation-row-premium small { color: #98a39b; font-family: "DM Mono", monospace; text-align: right; }
+.allocation-track-premium { height: 7px; border-radius: 10px; background: #eef2ee; overflow: hidden; }
+.allocation-track-premium i { display: block; height: 100%; border-radius: inherit; min-width: 3px; }
+@media (max-width: 700px) { .allocation-row-premium { grid-template-columns: 104px 1fr 66px 31px; gap: 7px; }.premium-chart-legend { gap: 9px; } }
