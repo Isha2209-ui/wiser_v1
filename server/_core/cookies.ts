@@ -42,7 +42,11 @@ export function getSessionCookieOptions(
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req),
+    // The OAuth callback is a top-level navigation, so Lax is sufficient and
+    // is accepted by embedded preview browsers that reject SameSite=None.
+    sameSite: "lax",
+    // Managed previews terminate TLS before the app process. Trust the
+    // forwarded host/protocol and keep Secure enabled for those HTTPS origins.
+    secure: isSecureRequest(req) || Boolean(req.headers["x-forwarded-host"]),
   };
 }

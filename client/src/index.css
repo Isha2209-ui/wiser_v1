@@ -34,3 +34,15 @@ button { cursor: pointer; }
 @media (max-width: 760px) { .login-screen { grid-template-columns: 1fr; }.login-art { min-height: 220px; padding: 30px; align-items: flex-end; }.login-art:before { width: 300px; height: 300px; left: 30%; top: -60px; }.login-quote p { font-size: 17px; max-width: 280px; }.login-panel { padding: 35px 24px 45px; }.login-brand { margin-bottom: 36px; } }
 
 .settings-modal { max-width: 520px; }.settings-list { display: grid; gap: 9px; margin-top: 21px; }.settings-list > div { border: 1px solid #e7ece6; background: #f8faf7; border-radius: 8px; padding: 12px 13px; }.settings-list span { display: block; color: #9aa69d; text-transform: uppercase; font-family: "DM Mono"; font-size: 8px; letter-spacing: .8px; }.settings-list b { display: block; color: #4d6153; font-size: 11px; margin-top: 6px; }.settings-list small { display: block; color: #97a39a; font-size: 9px; margin-top: 3px; }
+
+/* Premium login wordmark */
+.login-brand { gap: 14px; margin-bottom: 64px; }
+.login-brand .app-mark { width: 42px; height: 42px; border-radius: 12px; transform: rotate(-4deg); }
+.login-brand .app-mark-dot { width: 10px; height: 10px; top: 9px; left: 9px; }
+.login-brand .app-mark-dot.small { width: 7px; height: 7px; right: 9px; bottom: 8px; }
+.login-brand .app-mark-line { width: 19px; height: 3px; }
+.login-brand b { font-family: "Manrope", sans-serif; font-size: 34px; line-height: .92; letter-spacing: -1.7px; font-weight: 800; }
+.login-brand b span { color: #35bd76; }
+.login-brand small { font-family: "DM Mono", monospace; font-size: 9px; letter-spacing: 2px; margin-top: 8px; }
+.login-copy h1 { font-size: clamp(31px, 3.6vw, 49px); }
+@media (max-width: 760px) { .login-brand { margin-bottom: 40px; }.login-brand b { font-size: 30px; } }
