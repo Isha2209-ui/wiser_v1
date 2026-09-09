@@ -1,12 +1,13 @@
 import { useMemo, useRef, useState } from "react";
 import { Streamdown } from "streamdown";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { startLogin } from "@/const";
 import { trpc } from "@/lib/trpc";
 import DocumentReview from "@/components/DocumentReview";
 import type { FinancialProfile } from "../../../server/financeData";
 import {
   Activity, ArrowDownRight, ArrowUpRight, BarChart3, Bell, BrainCircuit, BriefcaseBusiness, Building2,
-  CalendarDays, CarFront, Check, ChevronDown, CircleAlert, CreditCard, FileText, Landmark, LayoutDashboard,
+  CalendarDays, CarFront, Check, ChevronDown, ChevronRight, CircleAlert, CreditCard, FileText, Landmark, LayoutDashboard,
   LineChart, Menu, MessageCircle, MoreHorizontal, PiggyBank, Plus, ReceiptText, Search, Send, Settings2,
   ShieldCheck, Sparkles, Target, TrendingUp, Upload, WalletCards, X, Zap,
 } from "lucide-react";
@@ -32,9 +33,13 @@ function AppMark() {
   return <div className="app-mark"><span className="app-mark-dot" /><span className="app-mark-line" /><span className="app-mark-dot small" /></div>;
 }
 
+function Login() {
+  return <div className="login-screen"><div className="login-art"><div className="login-art-grid" /><div className="login-quote"><Sparkles size={17} /><p>“The clearest view of your financial life is the one that connects everything.”</p><span>CredWise Intelligence</span></div></div><div className="login-panel"><div className="login-brand"><AppMark /><div><b>credwise<span>.</span></b><small>intelligent money</small></div></div><div className="login-copy"><p className="eyebrow mint-eyebrow">SECURE WORKSPACE</p><h1>Your entire financial life.<br /><em>One intelligent advisor.</em></h1><p>Sign in to access your connected financial picture, documents, goals, and private AI advisor.</p></div><button className="oauth-btn" onClick={() => startLogin()}><ShieldCheck size={17} /> Continue with secure login <ArrowUpRight size={15} /></button><div className="login-divider"><span>Protected by Manus OAuth</span></div><div className="demo-note"><ShieldCheck size={16} /><span><b>Secure sign-in</b><small>Your session is encrypted and your financial workspace is private.</small></span></div><p className="login-foot">This prototype uses synthetic demo data. Do not enter real banking credentials.</p></div></div>;
+}
+
 export default function Home() {
-  const auth = useAuth({ redirectOnUnauthenticated: true });
-  const { data, isLoading, error } = trpc.finance.profile.useQuery();
+  const auth = useAuth();
+  const { data, isLoading, error } = trpc.finance.profile.useQuery(undefined, { enabled: auth.isAuthenticated });
   const ask = trpc.finance.ask.useMutation();
   const [section, setSection] = useState<Section>("Overview");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -46,6 +51,8 @@ export default function Home() {
   const [showSimulator, setShowSimulator] = useState(false);
   const [showDocument, setShowDocument] = useState(false);
   const [documentConfirmed, setDocumentConfirmed] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const simInput = useMemo(() => ({ price: scenario.price, downPayment: scenario.downPayment, annualRate: scenario.rate, years: scenario.years }), [scenario]);
@@ -65,7 +72,9 @@ export default function Home() {
     }
   };
 
-  if (auth.loading || !auth.isAuthenticated || isLoading || !profile || !summary) return <div className="loading-screen"><div className="loading-orb"><Sparkles size={22} /></div><p>{auth.isAuthenticated ? "Building your financial picture…" : "Securely opening your workspace…"}</p></div>;
+  if (auth.loading) return <div className="loading-screen"><div className="loading-orb"><Sparkles size={22} /></div><p>Checking your secure session…</p></div>;
+  if (!auth.isAuthenticated) return <Login />;
+  if (isLoading || !profile || !summary) return <div className="loading-screen"><div className="loading-orb"><Sparkles size={22} /></div><p>Building your financial picture…</p></div>;
   if (error) return <div className="loading-screen"><CircleAlert size={28} /><p>Unable to load the demo financial profile.</p></div>;
 
   const navItems: Array<{ label: Section; icon: typeof LayoutDashboard }> = [
@@ -81,11 +90,11 @@ export default function Home() {
       <div className="workspace-label second">TOOLS</div>
       <button className="nav-item" onClick={() => setShowSimulator(true)}><Zap size={17} /><span>What-if simulator</span></button>
       <button className="nav-item" onClick={() => setShowDocument(true)}><FileText size={17} /><span>Document review</span></button>
-      <div className="sidebar-bottom"><div className="secure-note"><ShieldCheck size={16} /><span>Your data is private<br /><b>Last synced 8 min ago</b></span></div><button className="nav-item"><Settings2 size={17} /><span>Settings</span></button><div className="profile-chip"><div className="avatar">{profile.user.initials}</div><div><b>{profile.user.name}</b><span>Personal workspace</span></div><ChevronDown size={15} className="muted" /></div></div>
+      <div className="sidebar-bottom"><div className="secure-note"><ShieldCheck size={16} /><span>Your data is private<br /><b>Last synced 8 min ago</b></span></div><button className="nav-item" onClick={() => setShowSettings(true)}><Settings2 size={17} /><span>Settings</span></button><div className="profile-chip"><div className="avatar">{profile.user.initials}</div><div><b>{profile.user.name}</b><span>Personal workspace</span></div><ChevronDown size={15} className="muted" /></div></div>
     </aside>
     {mobileOpen && <button className="mobile-scrim" onClick={() => setMobileOpen(false)} aria-label="Close menu" />}
     <main className="main-area">
-      <header className="topbar"><button className="icon-btn mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><div className="breadcrumbs"><span>Personal workspace</span><span className="slash">/</span><b>{section}</b></div><div className="top-actions"><div className="sync-state"><span className="sync-dot" />All accounts synced</div><button className="icon-btn"><Search size={18} /></button><button className="icon-btn notification"><Bell size={18} /><i /></button><div className="top-avatar">{profile.user.initials}</div></div></header>
+      <header className="topbar"><button className="icon-btn mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><div className="breadcrumbs"><span>Personal workspace</span><span className="slash">/</span><b>{section}</b></div><div className="top-actions"><div className="sync-state"><span className="sync-dot" />All accounts synced</div><button className="icon-btn"><Search size={18} /></button><button className="icon-btn notification"><Bell size={18} /><i /></button><div className="profile-menu-wrap"><button className="top-avatar" onClick={() => setProfileOpen(!profileOpen)}>{profile.user.initials}</button>{profileOpen && <div className="profile-menu"><div className="profile-menu-head"><div className="avatar">{profile.user.initials}</div><div><b>{auth.user?.name ?? profile.user.name}</b><span>{auth.user?.email ?? "Private workspace"}</span></div></div><button onClick={() => setProfileOpen(false)}>Profile <ChevronRight size={14} /></button><button onClick={() => setProfileOpen(false)}>Settings <ChevronRight size={14} /></button><button className="logout-item" onClick={() => auth.logout()}>Log out <ArrowUpRight size={14} /></button></div>}</div></div></header>
       <div className="content-wrap">
         <section className="welcome-row"><div><p className="eyebrow">TUESDAY, 09 SEPTEMBER 2026</p><h1>Good morning, Arjun <span className="wave">✦</span></h1><p className="lede">Here’s the clearest view of your financial life today.</p></div><button className="add-btn" onClick={() => setShowDocument(true)}><Plus size={16} /> Add financial data</button></section>
 
@@ -117,6 +126,7 @@ export default function Home() {
     {showSimulator && <div className="modal-backdrop" onClick={() => setShowSimulator(false)}><div className="modal-card simulator-modal" onClick={event => event.stopPropagation()}><div className="modal-head"><div><p className="eyebrow mint-eyebrow"><Zap size={12} /> SCENARIO PLANNER</p><h2>What if I buy a car?</h2><p>See how a decision changes your liquidity and monthly surplus.</p></div><button className="icon-btn" onClick={() => setShowSimulator(false)}><X size={18} /></button></div><div className="scenario-fields"><label>Car price<input type="number" value={scenario.price} onChange={e => setScenario({ ...scenario, price: Number(e.target.value) })} /></label><label>Down payment<input type="number" value={scenario.downPayment} onChange={e => setScenario({ ...scenario, downPayment: Number(e.target.value) })} /></label><label>Interest rate<input type="number" step="0.1" value={scenario.rate} onChange={e => setScenario({ ...scenario, rate: Number(e.target.value) })} /></label><label>Loan tenure<select value={scenario.years} onChange={e => setScenario({ ...scenario, years: Number(e.target.value) })}><option value={3}>3 years</option><option value={5}>5 years</option><option value={7}>7 years</option></select></label></div>{simulation && <div className="scenario-result"><div className="scenario-verdict"><div className="verdict-icon"><CarFront size={20} /></div><div><span>PLANNING SIGNAL</span><b>{simulation.verdict}</b></div></div><div className="scenario-stats"><div><span>Estimated EMI</span><b>{money(simulation.emi)}<small>/mo</small></b></div><div><span>Cash after down payment</span><b>{money(simulation.remainingCash)}</b></div><div><span>New monthly surplus</span><b className={simulation.newSurplus < 0 ? "negative" : ""}>{money(simulation.newSurplus)}</b></div><div><span>Runway after purchase</span><b>{simulation.runwayMonths} months</b></div></div></div>}<div className="modal-foot"><span><ShieldCheck size={14} /> Deterministic calculation · no return assumptions</span><button className="primary-btn" onClick={() => { setShowSimulator(false); sendQuestion(`What happens if I buy a car for ${money(scenario.price)} with ${money(scenario.downPayment)} down?`); }}>Discuss with advisor <ArrowUpRight size={14} /></button></div></div></div>}
 
     {showDocument && <DocumentReview onClose={() => setShowDocument(false)} />}
+    {showSettings && <div className="modal-backdrop" onClick={() => setShowSettings(false)}><div className="modal-card settings-modal" onClick={event => event.stopPropagation()}><div className="modal-head"><div><p className="eyebrow mint-eyebrow"><Settings2 size={12} /> WORKSPACE SETTINGS</p><h2>Settings</h2><p>Manage your account and privacy preferences.</p></div><button className="icon-btn" onClick={() => setShowSettings(false)}><X size={18} /></button></div><div className="settings-list"><div><span>Account</span><b>{auth.user?.name ?? profile.user.name}</b><small>{auth.user?.email ?? "Authenticated workspace"}</small></div><div><span>Security</span><b>Secure OAuth session</b><small>Password management is handled by the secure identity provider.</small></div><div><span>Notifications</span><b>Coming Soon</b><small>Notification controls will be available in a future update.</small></div><div><span>Data & privacy</span><b>Synthetic demo data</b><small>Your current workspace uses clearly labeled synthetic financial data.</small></div></div><div className="modal-foot"><span><ShieldCheck size={14} /> Your session is protected.</span><button className="secondary-btn" onClick={() => setShowSettings(false)}>Done</button></div></div></div>}
   </div>;
 }
 

@@ -123,7 +123,7 @@ export const appRouter = router({
     documentAsk: protectedProcedure
       .input(z.object({ documentId: z.string(), question: z.string().min(1).max(1200), history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(12).optional() }))
       .mutation(async ({ input }) => {
-        if (input.documentId !== DEMO_DOCUMENT.id) return { answer: "I couldn't find that document in the active library.", source: "Document library" as const };
+        if (input.documentId !== DEMO_DOCUMENT.id && !input.documentId.startsWith("upload_")) return { answer: "I couldn't find that document in the active library.", source: "Document library" as const };
         try {
           const response = await invokeLLM({
             model: "gpt-5-mini",
