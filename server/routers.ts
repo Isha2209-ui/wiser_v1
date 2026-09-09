@@ -93,8 +93,8 @@ export const appRouter = router({
     }),
   }),
   finance: router({
-    profile: protectedProcedure.query(() => financialSnapshot()),
-    ask: protectedProcedure
+    profile: publicProcedure.query(() => financialSnapshot()),
+    ask: publicProcedure
       .input(z.object({ question: z.string().min(1).max(1200), history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(12).optional() }))
       .mutation(async ({ input }) => {
         const context = JSON.stringify(financialSnapshot());
@@ -116,11 +116,11 @@ export const appRouter = router({
         }
         return { answer: answerDeterministically(input.question), source: "Deterministic profile analysis" as const };
       }),
-    simulate: protectedProcedure
+    simulate: publicProcedure
       .input(z.object({ price: z.number().min(0).max(100000000), downPayment: z.number().min(0).max(100000000), annualRate: z.number().min(0).max(50), years: z.number().int().min(1).max(30) }))
       .query(({ input }) => scenarioResult(input.price, input.downPayment, input.annualRate, input.years)),
-    documents: protectedProcedure.query(() => ({ activeId: DEMO_DOCUMENT.id, documents: [DEMO_DOCUMENT] })),
-    documentAsk: protectedProcedure
+    documents: publicProcedure.query(() => ({ activeId: DEMO_DOCUMENT.id, documents: [DEMO_DOCUMENT] })),
+    documentAsk: publicProcedure
       .input(z.object({ documentId: z.string(), question: z.string().min(1).max(1200), history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(12).optional() }))
       .mutation(async ({ input }) => {
         if (input.documentId !== DEMO_DOCUMENT.id && !input.documentId.startsWith("upload_")) return { answer: "I couldn't find that document in the active library.", source: "Document library" as const };

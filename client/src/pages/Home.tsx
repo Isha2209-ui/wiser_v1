@@ -39,7 +39,7 @@ function Login() {
 
 export default function Home() {
   const auth = useAuth();
-  const { data, isLoading, error } = trpc.finance.profile.useQuery(undefined, { enabled: auth.isAuthenticated });
+  const { data, isLoading, error } = trpc.finance.profile.useQuery();
   const ask = trpc.finance.ask.useMutation();
   const [section, setSection] = useState<Section>("Overview");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -62,8 +62,8 @@ export default function Home() {
   const initials = auth.user?.name?.split(/\s+/).map(part => part[0]).join("").slice(0, 2).toUpperCase() || profile?.user.initials || "U";
 
   useEffect(() => {
-    if (auth.isAuthenticated && messages.length === 0) setMessages([{ role: "assistant", content: `Good morning, ${firstName}. I’ve reviewed your latest money picture. What would you like to understand today?`, source: "CredWise Intelligence" }]);
-  }, [auth.isAuthenticated, firstName, messages.length]);
+    if (messages.length === 0 && profile?.user.name) setMessages([{ role: "assistant", content: `Good morning, ${firstName}. I’ve reviewed your latest money picture. What would you like to understand today?`, source: "CredWise Intelligence" }]);
+  }, [firstName, messages.length, profile?.user.name]);
   useEffect(() => {
     if (!auth.isAuthenticated && !auth.loading) {
       setMessages([]);
@@ -87,8 +87,6 @@ export default function Home() {
     }
   };
 
-  if (auth.loading) return <div className="loading-screen"><div className="loading-orb"><Sparkles size={22} /></div><p>Checking your secure session…</p></div>;
-  if (!auth.isAuthenticated) return <Login />;
   if (isLoading || !profile || !summary) return <div className="loading-screen"><div className="loading-orb"><Sparkles size={22} /></div><p>Building your financial picture…</p></div>;
   if (error) return <div className="loading-screen"><CircleAlert size={28} /><p>Unable to load the demo financial profile.</p></div>;
 
