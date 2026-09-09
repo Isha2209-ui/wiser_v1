@@ -13,12 +13,13 @@ type LocalDocument = { id: string; name: string; size: string; pages: number; ty
 export default function DocumentReview({ onClose }: Props) {
   const { data, isLoading } = trpc.finance.documents.useQuery();
   const documentAsk = trpc.finance.documentAsk.useMutation();
+  const registerDocument = trpc.finance.registerDocument.useMutation();
+  const utils = trpc.useUtils();
   const [selectedId, setSelectedId] = useState("doc_august_2026");
   const [question, setQuestion] = useState("");
-  const [uploadedNames, setUploadedNames] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<DocMessage[]>([{ role: "assistant", content: "I’ve processed the complete August statement. Ask me anything about balances, spending, recurring payments, or specific transactions.", source: "Pages 1–6 · Grounded in active PDF" }]);
-  const libraryDocs: LocalDocument[] = [...(data?.documents ?? []), ...uploadedNames.map((name, index) => ({ id: `upload_${index}_${name}`, name, size: "Processing", pages: 0, type: "PDF statement", uploadedAt: "Just now", period: "Processing entire PDF", status: "Processing", summary: null }))];
+  const libraryDocs: LocalDocument[] = (data?.documents ?? []) as LocalDocument[];
   const document = libraryDocs.find(item => item.id === selectedId) ?? libraryDocs[0];
   const s = document?.summary;
   const quickPrompts = ["What was my biggest transaction?", "How much did I spend on shopping?", "Were there any unusual transactions?"];
@@ -35,7 +36,7 @@ export default function DocumentReview({ onClose }: Props) {
 
   if (isLoading || !document) return <div className="doc-overlay"><div className="doc-loading"><Sparkles size={22} /><p>Loading document intelligence…</p></div></div>;
   if (!s) return <div className="doc-overlay"><div className="doc-loading"><div className="upload-icon"><Sparkles size={22} /></div><h2>{document.name}</h2><p>Processing the complete PDF before showing any summary or answers.</p><small>Uploading → Extracting → Analyzing</small><button className="secondary-btn" onClick={onClose}>Back to workspace</button></div></div>;
-  const handleUpload = (file?: File) => { if (!file) return; const nextName = file.name || `Bank statement ${uploadedNames.length + 1}.pdf`; setUploadedNames(current => [...current, nextName]); setSelectedId(`upload_${uploadedNames.length}_${nextName}`); setMessages([{ role: "assistant", content: "This statement is queued for full-document processing. Once ready, its summary and document-specific chat will appear here.", source: "Processing status: Uploading → Extracting → Analyzing" }]); };
+  const handleUpload = async (file?: File) => { if (!file || registerDocument.isPending) return; const id = `doc_${crypto.randomUUID()}`; setSelectedId(id); setMessages([{ role: "assistant", content: "Uploading → Processing → Extracting → Analyzing this statement…", source: `Active document ID: ${id}` }]); try { await registerDocument.mutateAsync({ id, name: file.name, size: `${Math.max(1, Math.round(file.size / 1024))} KB` }); await utils.finance.documents.invalidate(); } catch { setMessages([{ role: "assistant", content: "Unable to process this statement. The previous documents remain available. Please try again.", source: "Processing error" }]); } };
   return <div className="doc-overlay">
     <header className="doc-topbar"><button className="doc-back" onClick={onClose}><ArrowLeft size={16} /> Back to workspace</button><div className="doc-brand"><span className="doc-brand-mark"><Sparkles size={13} /></span><b>CredWise Document Intelligence</b><span className="doc-secure"><ShieldCheck size={13} /> Private analysis</span></div><button className="icon-btn" onClick={onClose}><X size={19} /></button></header>
     <div className="doc-layout">

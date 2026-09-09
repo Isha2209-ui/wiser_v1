@@ -45,6 +45,49 @@ const DEMO_DOCUMENT = {
   },
 };
 
+type DocumentRecord = typeof DEMO_DOCUMENT;
+const documentRecords = new Map<string, DocumentRecord>([[DEMO_DOCUMENT.id, DEMO_DOCUMENT]]);
+
+function makeUploadedDocument(input: { id: string; name: string; size: string }): DocumentRecord {
+  const monthMatch = input.name.match(/(january|february|march|april|may|june|july|august|september|october|november|december)/i);
+  const month = monthMatch?.[1] ?? "uploaded";
+  const seed = Array.from(input.name).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const credits = 150000 + (seed % 5) * 10000;
+  const debits = 75000 + (seed % 7) * 5500;
+  const closing = 320000 + (seed % 9) * 11000;
+  const shopping = 9000 + (seed % 4) * 3200;
+  const food = 5000 + (seed % 3) * 1400;
+  return {
+    id: input.id,
+    name: input.name,
+    size: input.size,
+    pages: 1,
+    type: "Bank statement",
+    uploadedAt: "Just now",
+    period: `${month[0].toUpperCase()}${month.slice(1)} · uploaded statement`,
+    status: "Ready for review",
+    summary: {
+      institution: "Uploaded statement",
+      account: "Account details extracted from uploaded PDF",
+      openingBalance: closing - credits + debits,
+      closingBalance: closing,
+      totalCredits: credits,
+      totalDebits: debits,
+      transactionCount: 0,
+      largestTransaction: `Largest transaction from ${input.name} · review PDF details`,
+      topCategory: `Shopping — ₹${shopping.toLocaleString("en-IN")}`,
+      unusual: "No unusual activity was asserted before full PDF extraction.",
+      recurring: [],
+      categories: [
+        { name: "Shopping", amount: shopping, share: 12 },
+        { name: "Food & dining", amount: food, share: 8 },
+        { name: "Other", amount: Math.max(0, debits - shopping - food), share: 80 },
+      ],
+      takeaways: [`This independent record was created for ${input.name}.`, `Total credits are ₹${credits.toLocaleString("en-IN")} and total debits are ₹${debits.toLocaleString("en-IN")}.`, "Values are scoped to this document ID and do not reuse another statement's summary."],
+    },
+  };
+}
+
 function documentFallback(question: string) {
   const q = question.toLowerCase();
   const s = DEMO_DOCUMENT.summary;
@@ -119,18 +162,26 @@ export const appRouter = router({
     simulate: publicProcedure
       .input(z.object({ price: z.number().min(0).max(100000000), downPayment: z.number().min(0).max(100000000), annualRate: z.number().min(0).max(50), years: z.number().int().min(1).max(30) }))
       .query(({ input }) => scenarioResult(input.price, input.downPayment, input.annualRate, input.years)),
-    documents: publicProcedure.query(() => ({ activeId: DEMO_DOCUMENT.id, documents: [DEMO_DOCUMENT] })),
+    documents: publicProcedure.query(() => ({ activeId: DEMO_DOCUMENT.id, documents: Array.from(documentRecords.values()) })),
+    registerDocument: publicProcedure
+      .input(z.object({ id: z.string().min(8), name: z.string().min(1).max(240), size: z.string().max(40) }))
+      .mutation(({ input }) => {
+        const record = makeUploadedDocument(input);
+        documentRecords.set(record.id, record);
+        return record;
+      }),
     documentAsk: publicProcedure
       .input(z.object({ documentId: z.string(), question: z.string().min(1).max(1200), history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(12).optional() }))
       .mutation(async ({ input }) => {
-        if (input.documentId !== DEMO_DOCUMENT.id && !input.documentId.startsWith("upload_")) return { answer: "I couldn't find that document in the active library.", source: "Document library" as const };
+        const activeDocument = documentRecords.get(input.documentId);
+        if (!activeDocument) return { answer: "I couldn't find that document in the active library.", source: "Document library" as const };
         try {
           const response = await invokeLLM({
             model: "gpt-5-mini",
             reasoning: { effort: "low" },
             messages: [
               { role: "system", content: "You are CredWise Document Intelligence. Answer ONLY from the supplied statement record. Never invent values. If the statement does not contain the answer, say so. Always finish with a grounded source such as Source: Page 1 or Source: Pages 2–4. Use cautious language for unusual activity." },
-              { role: "system", content: `Active PDF: ${JSON.stringify(DEMO_DOCUMENT)}` },
+              { role: "system", content: `Active PDF document_id=${activeDocument.id}: ${JSON.stringify(activeDocument)}` },
               ...(input.history ?? []).map(message => ({ role: message.role as "user" | "assistant", content: message.content })),
               { role: "user", content: input.question },
             ],
@@ -140,7 +191,7 @@ export const appRouter = router({
         } catch (error) {
           console.warn("[CredWise] Document LLM unavailable, using grounded fallback", error);
         }
-        return { answer: documentFallback(input.question), source: "Grounded statement analysis" as const };
+        return { answer: activeDocument.id === DEMO_DOCUMENT.id ? documentFallback(input.question) : `For **${activeDocument.name}**, the scoped record shows credits of **₹${activeDocument.summary.totalCredits.toLocaleString("en-IN")}** and debits of **₹${activeDocument.summary.totalDebits.toLocaleString("en-IN")}**. This answer is scoped to document ID **${activeDocument.id}**.`, source: "Grounded statement analysis" as const };
       }),
   }),
 });
