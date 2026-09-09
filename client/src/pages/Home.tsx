@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Streamdown } from "streamdown";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
@@ -44,9 +44,7 @@ export default function Home() {
   const [section, setSection] = useState<Section>("Overview");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string; source?: string }>>([
-    { role: "assistant", content: "Good morning, Arjun. I’ve reviewed your latest money picture. What would you like to understand today?", source: "CredWise Intelligence" },
-  ]);
+  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string; source?: string }>>([]);
   const [scenario, setScenario] = useState({ price: 500000, downPayment: 200000, rate: 10.5, years: 5 });
   const [showSimulator, setShowSimulator] = useState(false);
   const [showDocument, setShowDocument] = useState(false);
@@ -59,6 +57,23 @@ export default function Home() {
   const { data: simulation } = trpc.finance.simulate.useQuery(simInput, { enabled: showSimulator });
   const profile = data?.profile;
   const summary = profile?.summary;
+  const displayName = auth.user?.name?.trim() || profile?.user.name || "User";
+  const firstName = displayName.split(/\s+/)[0] || "User";
+  const initials = auth.user?.name?.split(/\s+/).map(part => part[0]).join("").slice(0, 2).toUpperCase() || profile?.user.initials || "U";
+
+  useEffect(() => {
+    if (auth.isAuthenticated && messages.length === 0) setMessages([{ role: "assistant", content: `Good morning, ${firstName}. I’ve reviewed your latest money picture. What would you like to understand today?`, source: "CredWise Intelligence" }]);
+  }, [auth.isAuthenticated, firstName, messages.length]);
+  useEffect(() => {
+    if (!auth.isAuthenticated && !auth.loading) {
+      setMessages([]);
+      setQuestion("");
+      setShowDocument(false);
+      setProfileOpen(false);
+      setShowSettings(false);
+      try { localStorage.removeItem("credwise-active-document"); sessionStorage.removeItem("credwise-chat-context"); } catch {}
+    }
+  }, [auth.isAuthenticated, auth.loading]);
 
   const sendQuestion = async (text = question) => {
     const trimmed = text.trim(); if (!trimmed || ask.isPending) return;
@@ -90,13 +105,13 @@ export default function Home() {
       <div className="workspace-label second">TOOLS</div>
       <button className="nav-item" onClick={() => setShowSimulator(true)}><Zap size={17} /><span>What-if simulator</span></button>
       <button className="nav-item" onClick={() => setShowDocument(true)}><FileText size={17} /><span>Document review</span></button>
-      <div className="sidebar-bottom"><div className="secure-note"><ShieldCheck size={16} /><span>Your data is private<br /><b>Last synced 8 min ago</b></span></div><button className="nav-item" onClick={() => setShowSettings(true)}><Settings2 size={17} /><span>Settings</span></button><div className="profile-chip"><div className="avatar">{profile.user.initials}</div><div><b>{profile.user.name}</b><span>Personal workspace</span></div><ChevronDown size={15} className="muted" /></div></div>
+      <div className="sidebar-bottom"><div className="secure-note"><ShieldCheck size={16} /><span>Your data is private<br /><b>Last synced 8 min ago</b></span></div><button className="nav-item" onClick={() => setShowSettings(true)}><Settings2 size={17} /><span>Settings</span></button><div className="profile-chip"><div className="avatar">{initials}</div><div><b>{displayName}</b><span>{auth.user?.email ?? "Personal workspace"}</span></div><ChevronDown size={15} className="muted" /></div></div>
     </aside>
     {mobileOpen && <button className="mobile-scrim" onClick={() => setMobileOpen(false)} aria-label="Close menu" />}
     <main className="main-area">
       <header className="topbar"><button className="icon-btn mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><div className="breadcrumbs"><span>Personal workspace</span><span className="slash">/</span><b>{section}</b></div><div className="top-actions"><div className="sync-state"><span className="sync-dot" />All accounts synced</div><button className="icon-btn"><Search size={18} /></button><button className="icon-btn notification"><Bell size={18} /><i /></button><div className="profile-menu-wrap"><button className="top-avatar" onClick={() => setProfileOpen(!profileOpen)}>{profile.user.initials}</button>{profileOpen && <div className="profile-menu"><div className="profile-menu-head"><div className="avatar">{profile.user.initials}</div><div><b>{auth.user?.name ?? profile.user.name}</b><span>{auth.user?.email ?? "Private workspace"}</span></div></div><button onClick={() => setProfileOpen(false)}>Profile <ChevronRight size={14} /></button><button onClick={() => setProfileOpen(false)}>Settings <ChevronRight size={14} /></button><button className="logout-item" onClick={() => auth.logout()}>Log out <ArrowUpRight size={14} /></button></div>}</div></div></header>
       <div className="content-wrap">
-        <section className="welcome-row"><div><p className="eyebrow">TUESDAY, 09 SEPTEMBER 2026</p><h1>Good morning, Arjun <span className="wave">✦</span></h1><p className="lede">Here’s the clearest view of your financial life today.</p></div><button className="add-btn" onClick={() => setShowDocument(true)}><Plus size={16} /> Add financial data</button></section>
+        <section className="welcome-row"><div><p className="eyebrow">TUESDAY, 09 SEPTEMBER 2026</p><h1>Good morning, {firstName} <span className="wave">✦</span></h1><p className="lede">Here’s the clearest view of your financial life today.</p></div><button className="add-btn" onClick={() => setShowDocument(true)}><Plus size={16} /> Add financial data</button></section>
 
         {section === "Overview" && <>
           <section className="metric-grid">

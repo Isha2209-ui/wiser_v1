@@ -18,7 +18,7 @@ export default function DocumentReview({ onClose }: Props) {
   const [uploadedNames, setUploadedNames] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [messages, setMessages] = useState<DocMessage[]>([{ role: "assistant", content: "I’ve processed the complete August statement. Ask me anything about balances, spending, recurring payments, or specific transactions.", source: "Pages 1–6 · Grounded in active PDF" }]);
-  const libraryDocs: LocalDocument[] = [...(data?.documents ?? []), ...uploadedNames.map((name, index) => ({ id: `upload_${index}_${name}`, name, size: "Processing", pages: 0, type: "PDF statement", uploadedAt: "Just now", period: "Processing entire PDF", status: "Processing", summary: data?.documents[0]?.summary }))];
+  const libraryDocs: LocalDocument[] = [...(data?.documents ?? []), ...uploadedNames.map((name, index) => ({ id: `upload_${index}_${name}`, name, size: "Processing", pages: 0, type: "PDF statement", uploadedAt: "Just now", period: "Processing entire PDF", status: "Processing", summary: null }))];
   const document = libraryDocs.find(item => item.id === selectedId) ?? libraryDocs[0];
   const s = document?.summary;
   const quickPrompts = ["What was my biggest transaction?", "How much did I spend on shopping?", "Were there any unusual transactions?"];
@@ -33,7 +33,8 @@ export default function DocumentReview({ onClose }: Props) {
     } catch { setMessages([...next, { role: "assistant", content: "I couldn’t reach document intelligence right now. Please try again." }]); }
   };
 
-  if (isLoading || !document || !s) return <div className="doc-overlay"><div className="doc-loading"><Sparkles size={22} /><p>Loading document intelligence…</p></div></div>;
+  if (isLoading || !document) return <div className="doc-overlay"><div className="doc-loading"><Sparkles size={22} /><p>Loading document intelligence…</p></div></div>;
+  if (!s) return <div className="doc-overlay"><div className="doc-loading"><div className="upload-icon"><Sparkles size={22} /></div><h2>{document.name}</h2><p>Processing the complete PDF before showing any summary or answers.</p><small>Uploading → Extracting → Analyzing</small><button className="secondary-btn" onClick={onClose}>Back to workspace</button></div></div>;
   const handleUpload = (file?: File) => { if (!file) return; const nextName = file.name || `Bank statement ${uploadedNames.length + 1}.pdf`; setUploadedNames(current => [...current, nextName]); setSelectedId(`upload_${uploadedNames.length}_${nextName}`); setMessages([{ role: "assistant", content: "This statement is queued for full-document processing. Once ready, its summary and document-specific chat will appear here.", source: "Processing status: Uploading → Extracting → Analyzing" }]); };
   return <div className="doc-overlay">
     <header className="doc-topbar"><button className="doc-back" onClick={onClose}><ArrowLeft size={16} /> Back to workspace</button><div className="doc-brand"><span className="doc-brand-mark"><Sparkles size={13} /></span><b>CredWise Document Intelligence</b><span className="doc-secure"><ShieldCheck size={13} /> Private analysis</span></div><button className="icon-btn" onClick={onClose}><X size={19} /></button></header>
