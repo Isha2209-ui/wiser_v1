@@ -56,7 +56,7 @@ export default function Home() {
   const auth = useAuth();
   const [, navigate] = useLocation();
   const { data, isLoading, error } = trpc.finance.profile.useQuery(undefined, { enabled: auth.isAuthenticated });
-  const ask = trpc.finance.ask.useMutation();
+  const [isAsking, setIsAsking] = useState(false);
   const [section, setSection] = useState<Section>("Overview");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [question, setQuestion] = useState("");
@@ -91,15 +91,37 @@ export default function Home() {
   }, [auth.isAuthenticated, auth.loading]);
 
   const sendQuestion = async (text = question) => {
-    const trimmed = text.trim(); if (!trimmed || ask.isPending) return;
+    const trimmed = text.trim(); if (!trimmed || isAsking) return;
     const nextMessages = [...messages, { role: "user" as const, content: trimmed }];
-    setMessages(nextMessages); setQuestion("");
-    try {
-      const response = await ask.mutateAsync({ question: trimmed, history: messages.slice(-8).map(({ role, content }) => ({ role, content })) });
-      setMessages([...nextMessages, { role: "assistant", content: response.answer, source: response.source }]);
-    } catch {
-      setMessages([...nextMessages, { role: "assistant", content: "I couldn’t reach the advisor right now. Your local profile is still available to explore; please try again in a moment." }]);
+    setMessages([...nextMessages, { role: "assistant", content: "", source: "CredWise Intelligence" }]); setQuestion(""); setIsAsking(true);
+    let assistantContent = "";
+    let receivedContent = false;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2 && !receivedContent; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 20000);
+      try {
+        const response = await fetch("/api/finance/ask/stream", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: trimmed, history: messages.slice(-8).map(({ role, content }) => ({ role, content })) }), signal: controller.signal });
+        if (!response.ok || !response.body) throw new Error(`Advisor request failed: ${response.status}`);
+        const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
+        while (true) {
+          const { value, done } = await reader.read(); if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const frames = buffer.split("\n\n"); buffer = frames.pop() ?? "";
+          for (const frame of frames) {
+            const event = frame.match(/^event: (.+)$/m)?.[1]; const dataLine = frame.split("\n").find(line => line.startsWith("data: "));
+            if (!dataLine) continue;
+            const payload = JSON.parse(dataLine.slice(6));
+            if (event === "chunk") { assistantContent += payload.delta ?? ""; receivedContent = true; setMessages([...nextMessages, { role: "assistant", content: assistantContent, source: "CredWise Intelligence" }]); }
+            if (event === "fallback") { assistantContent = payload.answer ?? ""; receivedContent = true; setMessages([...nextMessages, { role: "assistant", content: assistantContent, source: payload.source }]); }
+          }
+        }
+        if (!receivedContent) throw new Error("Advisor returned no content");
+      } catch (error) { lastError = error; if (attempt === 0) await new Promise(resolve => window.setTimeout(resolve, 250)); }
+      finally { window.clearTimeout(timeout); }
     }
+    if (!receivedContent) setMessages([...nextMessages, { role: "assistant", content: "I couldn’t reach the advisor right now. Please try again in a moment. Your connected data remains available, and no financial action was taken.", source: "CredWise Intelligence" }]);
+    setIsAsking(false);
   };
 
   if (!auth.isAuthenticated) return <Login />;
@@ -152,7 +174,7 @@ export default function Home() {
         {section === "Credit & debt" && <Debt profile={profile} />}
         {section === "Goals" && <Goals profile={profile} />}
 
-        <section className="advisor-section" id="advisor"><div className="advisor-header"><div><p className="eyebrow mint-eyebrow"><Sparkles size={12} /> CREDWISE INTELLIGENCE</p><h2>Ask anything about your money</h2><p>One advisor for your entire financial life — not a collection of disconnected tools.</p></div><div className="advisor-badge"><ShieldCheck size={15} /> Profile-based answers</div></div><div className="chat-box"><div className="chat-messages">{messages.map((message, index) => <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}><div className={`chat-avatar ${message.role}`}>{message.role === "assistant" ? <Sparkles size={15} /> : profile.user.initials}</div><div className="chat-bubble"><Streamdown>{message.content}</Streamdown>{message.source && <span className="chat-source"><span className="sync-dot" /> {message.source}</span>}</div></div>)}{ask.isPending && <div className="chat-message assistant"><div className="chat-avatar assistant"><Sparkles size={15} /></div><div className="chat-bubble typing"><i /><i /><i /></div></div>}</div><div className="prompt-row">{quickPrompts.map(prompt => <button key={prompt} onClick={() => sendQuestion(prompt)}>{prompt}</button>)}</div><div className="chat-input-row"><input id="advisor-input" value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === "Enter") sendQuestion(); }} placeholder="Ask CredWise anything… e.g. Can I afford a ₹5 lakh car?" /><button className="mic-btn" aria-label="Voice input"><Activity size={17} /></button><button className="send-btn" onClick={() => sendQuestion()} disabled={!question.trim() || ask.isPending}><Send size={16} /></button></div><div className="chat-disclaimer"><ShieldCheck size={13} /> Answers use your connected data and clearly label assumptions. Not investment advice.</div></div></section>
+        <section className="advisor-section" id="advisor"><div className="advisor-header"><div><p className="eyebrow mint-eyebrow"><Sparkles size={12} /> CREDWISE INTELLIGENCE</p><h2>Ask anything about your money</h2><p>One advisor for your entire financial life — not a collection of disconnected tools.</p></div><div className="advisor-badge"><ShieldCheck size={15} /> Profile-based answers</div></div><div className="chat-box"><div className="chat-messages">{messages.map((message, index) => <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}><div className={`chat-avatar ${message.role}`}>{message.role === "assistant" ? <Sparkles size={15} /> : profile.user.initials}</div><div className="chat-bubble"><Streamdown>{message.content}</Streamdown>{message.source && <span className="chat-source"><span className="sync-dot" /> {message.source}</span>}</div></div>)}{isAsking && <div className="chat-message assistant"><div className="chat-avatar assistant"><Sparkles size={15} /></div><div className="chat-bubble typing"><i /><i /><i /></div></div>}</div><div className="prompt-row">{quickPrompts.map(prompt => <button key={prompt} onClick={() => sendQuestion(prompt)}>{prompt}</button>)}</div><div className="chat-input-row"><input id="advisor-input" value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={event => { if (event.key === "Enter") sendQuestion(); }} placeholder="Ask CredWise anything… e.g. Can I afford a ₹5 lakh car?" /><button className="mic-btn" aria-label="Voice input"><Activity size={17} /></button><button className="send-btn" onClick={() => sendQuestion()} disabled={!question.trim() || isAsking}><Send size={16} /></button></div><div className="chat-disclaimer"><ShieldCheck size={13} /> Answers use your connected data and clearly label assumptions. Not investment advice.</div></div></section>
       </div>
     </main>
 

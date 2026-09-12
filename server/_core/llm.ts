@@ -420,6 +420,36 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   return (await response.json()) as InvokeResult;
 }
 
+/** Starts an OpenAI-compatible SSE completion without buffering the answer. */
+export async function invokeLLMStream(
+  params: InvokeParams,
+  signal?: AbortSignal
+): Promise<Response> {
+  assertApiKey();
+  const payload: Record<string, unknown> = {
+    messages: params.messages.map(normalizeMessage),
+    stream: true,
+  };
+  if (params.model) payload.model = params.model;
+  if (params.reasoning) payload.reasoning = params.reasoning;
+  if (params.thinking) payload.thinking = params.thinking;
+  const resolvedMaxTokens = params.max_tokens ?? params.maxTokens;
+  if (typeof resolvedMaxTokens === "number") payload.max_tokens = resolvedMaxTokens;
+  const normalizedResponseFormat = normalizeResponseFormat({
+    responseFormat: params.responseFormat,
+    response_format: params.response_format,
+    outputSchema: params.outputSchema,
+    output_schema: params.output_schema,
+  });
+  if (normalizedResponseFormat) payload.response_format = normalizedResponseFormat;
+  return fetch(resolveApiUrl(), {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${ENV.forgeApiKey}` },
+    body: JSON.stringify(payload),
+    signal,
+  });
+}
+
 export type ModelInfo = {
   id: string;
   object: string;
