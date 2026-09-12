@@ -30,14 +30,6 @@ describe("CredWise finance", () => {
     expect(result.metrics.totalDebt).toBe(3630600);
   });
 
-  it("calculates a what-if car scenario without inventing profile data", async () => {
-    const result = await appRouter.createCaller(createContext()).finance.simulate({ price: 500000, downPayment: 200000, annualRate: 10.5, years: 5 });
-    expect(result.emi).toBeGreaterThan(0);
-    expect(result.remainingCash).toBe(634200);
-    expect(result.runwayMonths).toBeGreaterThan(4);
-    expect(result.verdict).toContain("runway");
-  });
-
   it("answers common advisor questions from the same source profile", () => {
     const answer = answerDeterministically("What is my net worth?");
     expect(answer).toContain("₹42,86,500");

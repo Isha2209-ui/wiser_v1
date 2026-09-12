@@ -104,26 +104,6 @@ function documentFallback(question: string) {
   return "I could not find a precise answer to that question in this statement. Try asking about balances, credits, debits, categories, recurring payments, largest transactions, or unusual activity. I will not infer information that is not present in the PDF.";
 }
 
-function scenarioResult(price: number, downPayment: number, annualRate: number, years: number) {
-  const principal = Math.max(price - downPayment, 0);
-  const months = Math.max(years * 12, 1);
-  const monthlyRate = annualRate / 100 / 12;
-  const emi = monthlyRate === 0 ? principal / months : principal * monthlyRate * Math.pow(1 + monthlyRate, months) / (Math.pow(1 + monthlyRate, months) - 1);
-  const remainingCash = DEMO_PROFILE.summary.liquidCash - downPayment;
-  const newSurplus = DEMO_PROFILE.summary.monthlySurplus - emi;
-  return {
-    price,
-    downPayment,
-    principal,
-    annualRate,
-    years,
-    emi: Math.round(emi),
-    remainingCash,
-    newSurplus: Math.round(newSurplus),
-    runwayMonths: Math.round((remainingCash / DEMO_PROFILE.summary.monthlyExpenses) * 10) / 10,
-    verdict: remainingCash < DEMO_PROFILE.summary.monthlyExpenses * 6 ? "Below six months of runway" : newSurplus < 0 ? "Monthly cash flow turns negative" : "Within current planning guardrails",
-  };
-}
 
 export const appRouter = router({
   system: systemRouter,
@@ -136,8 +116,8 @@ export const appRouter = router({
     }),
   }),
   finance: router({
-    profile: publicProcedure.query(() => financialSnapshot()),
-    ask: publicProcedure
+    profile: protectedProcedure.query(() => financialSnapshot()),
+    ask: protectedProcedure
       .input(z.object({ question: z.string().min(1).max(1200), history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(12).optional() }))
       .mutation(async ({ input }) => {
         const context = JSON.stringify(financialSnapshot());
@@ -159,24 +139,21 @@ export const appRouter = router({
         }
         return { answer: answerDeterministically(input.question), source: "Deterministic profile analysis" as const };
       }),
-    simulate: publicProcedure
-      .input(z.object({ price: z.number().min(0).max(100000000), downPayment: z.number().min(0).max(100000000), annualRate: z.number().min(0).max(50), years: z.number().int().min(1).max(30) }))
-      .query(({ input }) => scenarioResult(input.price, input.downPayment, input.annualRate, input.years)),
-    documents: publicProcedure.query(() => ({ activeId: DEMO_DOCUMENT.id, documents: Array.from(documentRecords.values()) })),
-    registerDocument: publicProcedure
+    documents: protectedProcedure.query(() => ({ activeId: DEMO_DOCUMENT.id, documents: Array.from(documentRecords.values()) })),
+    registerDocument: protectedProcedure
       .input(z.object({ id: z.string().min(8), name: z.string().min(1).max(240), size: z.string().max(40) }))
       .mutation(({ input }) => {
         const record = makeUploadedDocument(input);
         documentRecords.set(record.id, record);
         return record;
       }),
-    deleteDocument: publicProcedure
+    deleteDocument: protectedProcedure
       .input(z.object({ documentId: z.string().min(1) }))
       .mutation(({ input }) => {
         const existed = documentRecords.delete(input.documentId);
         return { success: existed, documentId: input.documentId } as const;
       }),
-    documentAsk: publicProcedure
+    documentAsk: protectedProcedure
       .input(z.object({ documentId: z.string(), question: z.string().min(1).max(1200), history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(12).optional() }))
       .mutation(async ({ input }) => {
         const activeDocument = documentRecords.get(input.documentId);

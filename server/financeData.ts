@@ -173,5 +173,5 @@ export function answerDeterministically(question: string) {
   if (q.includes("transaction")) {
     return `Your latest activity includes salary credit of ${money(238000)}, rent of ${money(42000)}, a ${money(25000)} SIP, and an Amazon purchase of ${money(12480)} flagged for review. Ask “show my expenses by category” or “what looks unusual?” for a deeper view.`;
   }
-  return `I can reason over your connected profile, including cash flow, investments, debt, credit, goals, transactions, and what-if scenarios. I do not see enough information to answer that precisely yet, so try asking about affordability, savings, portfolio performance, debt priorities, unusual activity, or a specific goal.`;
+  return `I can reason over your connected profile, including cash flow, investments, debt, credit, goals, and transactions. I do not see enough information to answer that precisely yet, so try asking about affordability, savings, portfolio performance, debt priorities, unusual activity, or a specific goal.`;
 }
